@@ -1,0 +1,36 @@
+name: Redeploy to Remote Server
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Redeploy (SSH)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # This step runs the redeploy script on your remote host via SSH.
+      # REQUIRED SECRETS (set in repo Settings → Secrets):
+      # - DEPLOY_HOST: hostname or IP of target server
+      # - DEPLOY_USER: ssh username
+      # - DEPLOY_SSH_KEY: private SSH key (PEM) for user
+      # - DEPLOY_PATH: absolute path to repository on remote (where scripts/redeploy.sh exists)
+      - name: Run redeploy.sh on remote
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT }}
+          script: |
+            set -euo pipefail
+            echo "Running redeploy on remote host..."
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git pull --rebase || true
+            # Run redeploy with automatic prune. Remove AUTO_PRUNE if you prefer interactive confirmation.
+            AUTO_PRUNE=1 ./scripts/redeploy.sh

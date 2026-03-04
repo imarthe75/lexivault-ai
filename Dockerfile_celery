@@ -1,0 +1,55 @@
+FROM python:3.10-bookworm
+
+WORKDIR /app
+
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    libjpeg-dev \
+    zlib1g-dev \
+    libfreetype6-dev \
+    liblcms2-dev \
+    libopenjp2-7-dev \
+    libtiff5-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip
+
+RUN mkdir -p /app/backend
+COPY backend/requirements.txt /app/backend/
+
+# --- Install Python dependencies ---
+# SOLO INSTALA DESDE requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+
+# INSTALAR CALIBRE (ebook-convert) Y SUS DEPENDENCIAS
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    calibre \
+    libfontconfig1 \
+    libxrender1 \
+    xvfb \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# INSTALAR TESSERACT OCR Y SUS PAQUETES DE IDIOMA
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    tesseract-ocr \
+    tesseract-ocr-spa \
+    tesseract-ocr-eng \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# CLAMAV is used via the service, no need to install locally
+
+
+# Copy the rest of your application
+COPY backend/ /app/backend/
+
+# Si 'es_core_news_sm' no está en requirements.txt o necesitas asegurarte de su descarga
+# RUN python -m spacy download es_core_news_sm
+# Descargar el modelo de spaCy
+RUN python -m spacy download es_core_news_lg

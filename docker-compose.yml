@@ -1,0 +1,367 @@
+services:
+  # Servicio de Base de Datos PostgreSQL con PgVector
+  postgres_db:
+    image: pgvector/pgvector:pg17
+    hostname: postgres_db
+    container_name: digital_vault_project-postgres-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: America/Mexico_City # <--- AÑADE ESTA LÍNEA
+    ports:
+      - "5432:5432" # Expone el puerto 5432 para acceso externo (pgAdmin, etc.)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql # Add this line
+    networks:
+      - default
+    healthcheck: # Opcional: Asegura que la DB esté lista antes que otros servicios
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries:
+        5
+        #    command: postgres -c 'shared_preload_libraries=pg_vector'
+    #command: postgres -c 'shared_preload_libraries=pgvector' # <-- Añade o modifica esta línea
+
+  # Servicio de Almacenamiento de Objetos (MinIO compatible con S3)
+  minio:
+    image: minio/minio:latest
+    hostname: minio
+    container_name: digital_vault_project-minio
+    ports:
+      - "9000:9000" # Puerto API/Consola
+      - "9001:9001" # Puerto de la consola web (si lo usas para navegar)
+    environment:
+      MINIO_ROOT_USER: ${CEPH_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${CEPH_SECRET_KEY}
+      TZ: America/Mexico_City # <--- AÑADE ESTA LÍNEA
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    volumes:
+      - minio_data:/data
+    networks:
+      - default
+
+  # Servicio de Broker de Mensajes (Valkey/Redis)
+  valkey:
+    image: valkey/valkey:8.0
+    hostname: valkey
+    container_name: digital_vault_project-valkey
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD} # Define la contraseña de Valkey
+      TZ: America/Mexico_City # <--- AÑADE ESTA LÍNEA
+    ports:
+      - "6379:6379" # Expone el puerto si necesitas acceso externo
+    command: valkey-server --requirepass ${REDIS_PASSWORD:-} # Usar REDIS_PASSWORD si la defines, sino sin password
+    volumes:
+      - valkey_data:/data
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Servicio de Coordinación para Kafka (Zookeeper)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.8.0
+    hostname: zookeeper
+    container_name: digital_vault_project-zookeeper
+    ports:
+      - "2181:2181" # Expone el puerto si necesitas acceso externo para herramientas de Zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      TZ: America/Mexico_City # <--- AÑADE ESTA LÍNEA
+    networks:
+      - default
+    healthcheck: # <-- Añade este bloque
+      test: ["CMD", "sh", "-c", "nc -z localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    hostname: kafka
+    container_name: digital_vault_project-kafka
+    ports:
+      - "9092:9092" # Puerto para acceso desde el host (localhost:9092)
+      - "29092:29092" # Puerto para comunicación interna de Docker (kafka:29092)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+
+      # Define los listeners. INTERNAL para el puerto 29092, EXTERNAL para el 9092.
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:29092,EXTERNAL://0.0.0.0:9092
+
+      # *** ESTA ES LA PARTE CRÍTICA ***
+      # Anuncia las direcciones para los clientes:
+      # INTERNAL://kafka:29092: Para comunicación entre contenedores Docker.
+      # EXTERNAL://localhost:9092: Para clientes que se conectan desde la máquina host.
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+
+      # Mapeo de protocolos de seguridad a los listeners definidos.
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+
+      # Este es para la comunicación entre brokers de Kafka, usa el listener interno.
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      TZ: America/Mexico_City # <--- AÑADE ESTA LÍNEA
+    networks:
+      - default
+    healthcheck:
+      test: [
+          "CMD-SHELL",
+          "kafka-topics --bootstrap-server localhost:29092 --list",
+        ] # Usa el puerto interno para el healthcheck
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      zookeeper:
+        condition: service_healthy # <-- Añade esta línea
+
+  # Servicio de Backend (Flask API)
+  flask_backend:
+    build:
+      #context: ./backend
+      context: .
+      dockerfile: Dockerfile_Flask # Dockerfile para Flask en backend/Dockerfile_Flask
+    hostname: flask_backend
+    container_name: digital_vault_project-flask-backend
+    ports:
+      - "5000:5000" # Expone el puerto de la API al host
+    env_file: # <-- Añade esta línea
+      - .env # <-- Y esta línea para cargar variables de entorno desde el archivo .env
+    environment:
+      # Pasa todas las variables de entorno desde .env
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres_db # Conexión interna al contenedor de PostgreSQL
+      POSTGRES_PORT: ${POSTGRES_PORT}
+
+      # ECELERY_BROKER_URL: redis://valkey:6379/0 # Conexión interna a Valkey
+      # CELERY_RESULT_BACKEND: redis://valkey:6379/0
+
+      # Example for flask_backend environment:
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@valkey:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@valkey:6379/0
+
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      CEPH_ENDPOINT_URL: http://minio:9000 # Conexión interna al contenedor de MinIO
+      CEPH_ACCESS_KEY: ${CEPH_ACCESS_KEY}
+      CEPH_SECRET_KEY: ${CEPH_SECRET_KEY}
+      CEPH_BUCKET_NAME: ${CEPH_BUCKET_NAME}
+
+      SYSTEM_MASTER_KEY: ${SYSTEM_MASTER_KEY}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092 # Conexión interna a Kafka
+
+      ENABLE_KAFKA: "True"
+      KAFKA_TOPIC_FILE_UPLOADED: "file_uploads" # O el nombre del topic que uses
+      OLLAMA_GENERATION_MODEL: ${OLLAMA_GENERATION_MODEL} # <--- ¡CAMBIA ESTA LÍNEA! phi3:3.8b-mini-4k-instruct-q4_K_M # O mistral, o deepseek-coder
+
+      # Si Flask necesita conectarse a Ollama, que corre en el HOST
+      OLLAMA_API_BASE_URL:
+        http://ollama:11434 # Asegúrate que esta IP sea la de tu host si no usas host.docker.internal
+        # Para Docker Desktop en Linux, host.docker.internal funciona.
+        # Si no, usa la IP privada del host: http://<IP_PRIVADA_HOST>:11434
+      OLLAMA_EMBEDDING_MODEL: nomic-embed-text # Ya la tienes, pero la reitero para claridad
+      CLAMAV_ENABLED: "true" # Asegúrate de que ClamAV esté habilitado en el backend
+      CLAMAV_HOST: "clamav" # Asegúrate de que esta variable esté definida
+      CLAMAV_PORT: "3310" # Asegúrate de que esta variable esté definida
+      TZ: America/Mexico_City # <--- AÑADE ESTA LÍNEA
+      DOCUMENT_ENCRYPTION_KEY: ${DOCUMENT_ENCRYPTION_KEY}
+    volumes:
+      - ./backend:/app # Monta el código de tu backend para que los cambios sean visibles sin reconstruir
+    command: gunicorn --bind 0.0.0.0:5000 --timeout 1200 app:app # Usa Gunicorn para producción
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      clamav: # <--- AÑADE ESTO para que el backend espere a ClamAV
+        condition: service_healthy
+      ollama: # Añade ollama si tu backend depende de él
+        condition: service_healthy
+    networks:
+      - default
+
+    # Servicio del Worker de Celery (Optimizado)
+  celery_worker:
+    build:
+      #context: ./backend
+      context: .
+      dockerfile: Dockerfile_celery # Assumes your Dockerfile for the worker is in backend/Dockerfile
+    hostname: celery_worker
+    container_name: digital_vault_project-celery-worker
+    environment:
+      # Pass all environment variables from .env
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@valkey:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@valkey:6379/0
+      DOCUMENT_ENCRYPTION_KEY: ${DOCUMENT_ENCRYPTION_KEY}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres_db # Internal connection to the PostgreSQL container
+      POSTGRES_PORT: ${POSTGRES_PORT}
+
+      CEPH_ENDPOINT_URL: http://minio:9000 # Internal connection to the MinIO container
+      CEPH_ACCESS_KEY: ${CEPH_ACCESS_KEY}
+      CEPH_SECRET_KEY: ${CEPH_SECRET_KEY}
+      CEPH_BUCKET_NAME: ${CEPH_BUCKET_NAME}
+
+      SYSTEM_MASTER_KEY: ${SYSTEM_MASTER_KEY}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092 # Internal connection to Kafka
+
+      OLLAMA_GENERATION_MODEL: ${OLLAMA_GENERATION_MODEL} # Or mistral, or deepseek-coder
+      OLLAMA_API_BASE_URL: http://ollama:11434
+      OLLAMA_EMBEDDING_MODEL: nomic-embed-text
+      TZ: America/Mexico_City # <--- ADD THIS LINE!
+    volumes:
+      - ./backend:/app # Mount your backend code
+    # --- OPTIMIZATION CHANGES START HERE ---
+    # CORRECTED LINE: Changed --timeout to --time-limit
+    env_file: # <-- Añade esta línea
+      - .env # <-- Y esta
+    command: celery -A tasks worker --loglevel=info --pool=gevent --concurrency=100 --max-tasks-per-child=50 --time-limit 600
+    # Explanation of changes:
+    # --pool=gevent: Switches to gevent for I/O-bound concurrency. Requires 'gevent' in requirements.txt.
+    # --concurrency=100: Allows up to 100 concurrent tasks (adjust based on your server's resources and I/O patterns).
+    # --max-tasks-per-child=50: Restarts worker processes after 50 tasks to prevent memory leaks.
+    # --time-limit 600: Sets a hard timeout of 10 minutes (600 seconds) for tasks, killing runaway tasks.
+    # --- OPTIMIZATION CHANGES END HERE ---
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    networks:
+      - default
+
+  # Servicio de Monitoreo de Celery (Flower - Opcional pero Recomendado)
+  flower:
+    image: mher/flower:latest # Pre-built image for Celery Flower
+    container_name: digital_vault_project-flower
+    ports:
+      - "5555:5555" # Access Flower in your browser at http://localhost:5555
+    environment:
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD}@valkey:6379/0
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD}@valkey:6379/0
+      TZ: America/Mexico_City
+    depends_on:
+      - valkey # Flower needs access to the broker
+      - celery_worker # Not strictly necessary for Flower to start, but good practice
+    networks:
+      - default
+
+  ollama:
+    image: ollama/ollama:latest
+    hostname: ollama
+    container_name: digital_vault_project-ollama
+    environment:
+      TZ: America/Mexico_City
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "ollama", "list"] # Changed from curl to ollama list
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 120s # Keep this to allow Ollama to initialize
+
+  clamav:
+    image: clamav/clamav-debian:latest
+    hostname: clamav
+    container_name: digital_vault_project-clamav
+    ports:
+      - "3310:3310"
+    environment:
+      CLAMAV_NO_FRESHCLAMD: "true"
+      TZ: America/Mexico_City
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks:
+      - default
+    healthcheck:
+      #test: ["CMD-SHELL", "clamdscan --ping || exit 1"] # <--- MODIFIED
+      test: ["CMD", "nc", "-z", "localhost", "3310"] # Basic connection test
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 300s # <--- ADD THIS LINE for initial startup
+
+  # Servicio de HashiCorp Vault (Gestión de Secretos)
+  vault:
+    image: hashicorp/vault:latest
+    hostname: vault
+    container_name: digital_vault_project-vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root # Token raíz para desarrollo
+      VAULT_ADDR: http://0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - default
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Servicio de Frontend (Nginx)
+  frontend:
+    build:
+      context: ./frontend-react
+      dockerfile: Dockerfile
+    container_name: digital_vault_project-frontend
+    ports:
+      - "8000:80"
+    depends_on:
+      - flask_backend
+    networks:
+      - default
+
+# ... (el resto de tus servicios)
+
+# Definición de Redes
+networks:
+  default:
+    driver: bridge
+
+# Definición de Volúmenes (para persistencia de datos)
+volumes:
+  postgres_data:
+  valkey_data:
+  minio_data:
+  ollama_data: # <--- ¡AÑADE ESTA LÍNEA!
+  clamav_data: # Define el volumen persistente para ClamAV
