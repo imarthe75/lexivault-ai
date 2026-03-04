@@ -4,97 +4,84 @@
 <img src="docs/lexivault-logo.png" alt="LexiVault AI Logo" width="500px">
 </p>
 
-**LexiVault AI** (evolución de DIVA-RAG) es un ecosistema de gestión documental de grado empresarial. No es solo una "caja fuerte" digital; es un sistema de inteligencia que comprende, clasifica y extrae datos de tus documentos mediante **Docling** para el análisis de maquetación estructural y **LangGraph** para orquestar flujos de trabajo inteligentes.
+**LexiVault AI** es un ecosistema de gestión documental de grado empresarial diseñado para la era de la IA Agéntica. Utiliza **Docling** para la reconstrucción estructural de documentos y **LangGraph** para orquestar flujos de trabajo inteligentes. A diferencia de las soluciones RAG tradicionales, LexiVault garantiza la soberanía de los datos, seguridad gestionada por secretos dinámicos y persistencia de estado avanzada.
 
 ---
 
 ## 🎯 Objetivos del Proyecto
 
-* **Comprensión Estructural Profunda:** Superar el OCR plano mediante **Docling**, permitiendo que la IA comprenda tablas, jerarquías y formatos complejos como si fuera un humano.
-* **Automatización de Trámites (Camino Dual):** Arquitectura basada en agentes capaz de discernir entre una consulta informativa (**Chatbot**) y una tarea de extracción de datos validada (**Trámites**).
-* **Privacidad Total (Sovereign AI):** Procesamiento local mediante **Ollama (Qwen 3.5)**, garantizando que los datos sensibles jamás salgan de tu infraestructura.
-* **Bóveda de Conocimiento Zero:** Cifrado **Fernet** de grado militar en MinIO con gestión de secretos mediante **HashiCorp Vault**.
+* **Comprensión Estructural Profunda:** Uso de **Docling** para entender tablas, jerarquías y layouts complejos, transformando archivos binarios en Markdown semántico.
+* **Automatización Agéntica (Camino Dual):** Un router inteligente basado en **LangGraph** que distingue entre consultas conversacionales (**Chatbot**) y procesos de extracción de datos (**Trámites**).
+* **Privacidad Soberana:** Procesamiento 100% local mediante **Ollama (Qwen 3.5)**.
+* **Seguridad de Grado Bancario:** Gestión de identidades y secretos mediante **HashiCorp Vault** y cifrado **Fernet** en el almacenamiento.
 
 ---
 
-## 🏗️ Arquitectura del Sistema
+## 🏗️ Arquitectura y Componentes Clave
 
-LexiVault AI utiliza microservicios orquestados por Docker Compose, optimizados para el procesamiento asíncrono y la toma de decisiones autónoma.
-
-| Componente | Tecnología | Función Principal |
+| Componente | Tecnología | Función Crítica en LexiVault |
 | --- | --- | --- |
-| **API Gateway** | **FastAPI** | Punto de entrada de alto rendimiento con enrutamiento inteligente. |
-| **Parser Motor** | **Docling** | Convierte documentos complejos a **Markdown Estructural** preservando tablas y diseño. |
-| **Orquestador** | **LangGraph** | Gestiona los estados del proceso, permitiendo flujos cíclicos y validaciones multi-agente. |
-| **Cerebro (LLM)** | **Ollama** | Motor de razonamiento local (**Qwen 3.5**) para generación y extracción. |
-| **Memoria Vectorial** | **PostgreSQL + pgvector** | Almacena metadatos y embeddings para búsqueda semántica. |
-| **Bóveda Física** | **MinIO** | Almacenamiento de objetos S3 para binarios cifrados con versionado. |
-| **Bus & Cache** | **Valkey** | Broker de mensajería para Celery y persistencia de estados de LangGraph. |
+| **Orquestador** | **LangGraph** | Gestiona ciclos de decisión y lógica de agentes (Router/RAG/Extractor). |
+| **Persistencia de Estado** | **Valkey** | Actúa como **Checkpointer** de LangGraph; guarda el estado exacto de cada trámite y gestiona colas de Celery. |
+| **Gestor de Secretos** | **HashiCorp Vault** | Inyecta dinámicamente claves de cifrado, tokens y credenciales de DB en tiempo de ejecución. |
+| **Parser Motor** | **Docling** | Análisis de maquetación visual para convertir PDFs e imágenes en datos estructurados. |
+| **Cerebro (LLM)** | **Ollama** | Ejecución local de Qwen 3.5 para razonamiento y extracción sin salida a internet. |
+| **Bóveda Física** | **MinIO** | Almacenamiento S3 de documentos cifrados con soporte para versionado. |
 
 ---
 
-## 🔐 Seguridad y Confidencialidad
+## 🔐 Seguridad y Gestión de Secretos
 
-* **Cifrado en Reposo:** Documentos cifrados con **Fernet** (AES-128 en modo CBC) antes de ser almacenados en MinIO.
-* **Escaneo de Amenazas:** Capa de escaneo de seguridad previa a la ingesta de archivos.
-* **Gestión de Secretos (HashiCorp Vault):** Integración para el manejo dinámico de claves de cifrado y tokens JWT, eliminando secretos en texto plano.
-* **Firma Digital (Roadmap):** Implementación de firmas electrónicas para garantizar integridad y no repudio.
+LexiVault AI implementa un modelo de **Confianza Cero (Zero Trust)**:
 
----
-
-## 📄 Formatos y Análisis de Maquetación Integral
-
-El sistema utiliza modelos de visión artificial para transformar archivos en **Markdown Semántico**, permitiendo que la IA entienda el contexto visual:
-
-* **Documentos PDF e Imágenes (.pdf, .png, .jpg):** Detección de tablas complejas, encabezados y OCR estructural.
-* **Suite de Office (.docx, .xlsx, .pptx):** Conversión de hojas de cálculo a tablas Markdown reales y preservación de jerarquías de Word.
-* **E-books (.epub, .mobi, .azw3):** Normalización de capítulos y limpieza de metadatos.
-* **Estructurados (.json, .html, .md):** Parseo directo conservando la integridad técnica.
+* **HashiCorp Vault Integrado:** No se almacenan credenciales en archivos `.env`. El sistema autentica cada microservicio con Vault para obtener secretos dinámicos.
+* **Cifrado Dinámico:** Los documentos se cifran en tránsito y en reposo (AES-128 via Fernet) con llaves gestionadas y rotadas por Vault.
+* **Firma Digital (Roadmap):** Próxima implementación de firmas electrónicas para garantizar el no repudio de los documentos procesados.
 
 ---
 
-## 🔄 El Pipeline de Inteligencia
+## 🧠 El Rol de Valkey: Más que un Caché
 
-1. **Ingesta:** El archivo se recibe, se cifra y se guarda en MinIO.
-2. **Procesamiento:** Celery activa **Docling** para generar la estructura Markdown.
-3. **Razonamiento (LangGraph):** El router analiza la intención del usuario:
-* **Ruta Chat:** Realiza búsqueda semántica en `pgvector` y responde dudas.
-* **Ruta Extracción:** Mapea el texto a un esquema **Pydantic** para llenar formularios automáticamente.
+Valkey es el sistema nervioso del proyecto, encargado de:
+
+1. **Memory Checkpointing:** Permite que los agentes de LangGraph "recuerden" en qué paso de un trámite largo se encuentran, incluso tras un reinicio del sistema.
+2. **Escalabilidad Asíncrona:** Broker de alto rendimiento para que los Workers procesen el análisis de layout de Docling de forma paralela.
+3. **Context Management:** Mantiene la ventana de contexto de las conversaciones de chat para una respuesta inmediata.
+
+---
+
+## 📄 Formatos y Análisis de Layout Integral
+
+Gracias a modelos de visión artificial, procesamos documentos preservando su semántica:
+
+* **Documentos:** `.pdf` (tablas, encabezados), `.docx`, `.xlsx` (preservación de celdas), `.pptx`.
+* **Imágenes (OCR Estructural):** `.png`, `.jpg`, `.tiff`. Detecta firmas y sellos.
+* **E-books y Estructurados:** `.epub`, `.json`, `.html`, `.md`.
+
+---
+
+## 🔄 Flujo de Trabajo (Pipeline)
+
+1. **Ingesta:** El archivo se recibe, se escanea y se cifra con llaves obtenidas de **Vault**.
+2. **Estructuración:** **Docling** reconstruye el documento en Markdown.
+3. **Enrutamiento:** **LangGraph** consulta a **Valkey** el estado actual y decide:
+* **Ruta RAG:** Búsqueda en `pgvector` para responder dudas.
+* **Ruta Extracción:** Mapeo de datos a esquemas **Pydantic** para trámites automáticos.
 
 
 
 ---
 
-## 🛠️ Instalación Rápida
+## 🛠️ Instalación
 
-1. **Clonar:**
+1. **Configurar Vault:** Asegúrate de que tu instancia de HashiCorp Vault sea accesible y los roles de política estén creados.
+2. **Levantar Infraestructura:**
 ```bash
-git clone https://github.com/tu_usuario/lexivault-ai.git
-cd lexivault-ai
+docker compose up -d
 
 ```
 
 
-2. **Iniciar Docker:**
+3. **Sincronizar IA:**
 ```bash
-docker compose up --build -d
-
-```
-
-
-3. **Descargar IA Local:**
-```bash
-docker exec -it lexivault-ai-brain ollama run qwen2.5:7b
-docker exec -it lexivault-ai-brain ollama pull nomic-embed-text
-
-```
-
-
-
----
-
-## 🛣️ Próximos Pasos (Roadmap)
-
-* [ ] **Integración Total con HashiCorp Vault.**
-* [ ] **Módulo de Firma Digital.**
-* [ ] **Human-in-the-loop:** Interfaz de validación manual para formularios extraídos.
+docker exec -it lexivault-ai-brain ollama pull qwen2.5:7b
