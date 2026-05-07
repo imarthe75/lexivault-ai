@@ -17,6 +17,23 @@ from tasks import generate_embeddings_for_document_chunks, get_ollama_embedding,
 from vault_client import vault_client # Importar cliente de Vault
 
 
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from openinference.instrumentation.openai import OpenAIInstrumentor
+
+# --- Configuración de Observabilidad de IA (Arize Phoenix) ---
+# Se utiliza el nombre del servicio definido en docker-compose.yml del core
+OTLP_ENDPOINT = os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://casmarts-core-ai-obs:6006/v1/traces")
+
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=OTLP_ENDPOINT)))
+trace.set_tracer_provider(tracer_provider)
+
+# Instrumentamos las llamadas a OpenAI (compatible con NVIDIA NIM)
+OpenAIInstrumentor().instrument()
+
 # Carga las variables de entorno
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(dotenv_path):
@@ -626,6 +643,62 @@ def ask_question():
         logging.error(f"Error al guardar la conversación para usuario {user_id_from_token}: {save_e}", exc_info=True)
 
     return jsonify({"answer": llm_response})
+
+# --- Integración con Paperless-ngx ---
+@app.route('/documents/<uuid:document_id>/export-paperless', methods=['POST'])
+@jwt_required()
+def export_to_paperless(document_id):
+    current_user_id = UUID(get_jwt_identity())
+    session = request.db_session
+    try:
+        document = session.query(Document).filter_by(id=document_id, created_by=current_user_id).first()
+        if not document:
+            return jsonify({"error": "Document not found"}), 404
+        
+        latest_version = session.query(DocumentVersion).filter_by(document_id=document_id, is_latest_version=True).first()
+        if not latest_version:
+            return jsonify({"error": "No version found"}), 404
+            
+        file_processor = app.config['FILE_PROCESSOR_SERVICE']
+        decrypted_data = file_processor.retrieve_and_decrypt_file(latest_version)
+        
+        # Guardar en la carpeta consume de Paperless (montada en /export/paperless)
+        export_path = os.path.join('/export/paperless', latest_version.original_filename)
+        with open(export_path, 'wb') as f:
+            f.write(decrypted_data)
+            
+        logging.info(f"Document {document_id} exported to Paperless consume folder.")
+        return jsonify({"message": "Exported to Paperless successfully"}), 200
+    except Exception as e:
+        logging.error(f"Error exporting to Paperless: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+# --- Procesamiento Especializado de Actas (NER) ---
+@app.route('/documents/process-birth-certificate', methods=['POST'])
+@jwt_required()
+def process_birth_certificate():
+    current_user_id = UUID(get_jwt_identity())
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    
+    try:
+        file_processor = app.config['FILE_PROCESSOR_SERVICE']
+        # Usamos el método especializado del servicio
+        result = file_processor.process_birth_certificate_data(file, current_user_id)
+        return jsonify(result), 200
+    except Exception as e:
+        logging.error(f"Error processing birth certificate: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+# --- Unificación de Chat para Frontend ---
+@app.route('/chat/query', methods=['POST'])
+@jwt_required()
+def chat_query():
+    # Mapeo simple al endpoint existente /ask
+    data = request.get_json()
+    request.json['question'] = data.get('query')
+    return ask_question()
 
 
 # --- Punto de entrada principal ---

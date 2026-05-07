@@ -28,3 +28,7 @@ yarn-error.log*
 # Si usas alguna carpeta para uploads o resultados
 uploads/
 downloads/
+data/
+node_modules/
+.venv/
+__pycache__/

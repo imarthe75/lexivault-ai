@@ -6,6 +6,7 @@ python-dotenv==1.0.1
 cryptography==41.0.7
 SQLAlchemy==2.0.25
 psycopg[binary]
+psycopg2-binary
 minio==7.2.15
 kafka-python==1.4.7
 Flask-Cors==4.0.0
@@ -33,4 +34,8 @@ PyMuPDF
 PyMuPDF4LLM
 spacy #==3.5.0 # O una versión compatible y más reciente que la 2.3.7
 #es_core_news_sm # O el modelo que necesites, asegúrate que sea compatible con spacy 3.x
-hvac==1.2.1 # Python client for HashiCorp Vault
+hvac==1.2.1
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-otlp
+openinference-instrumentation-openai
