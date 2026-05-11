@@ -1,166 +1,140 @@
-# =============================================================================
-# LexiVault AI — Digital Vault Harmonized for CASMARTS 2026
-# =============================================================================
-
 services:
-
-  # ===========================================================================
-  # BACKEND (Flask API)
-  # ===========================================================================
   flask_backend:
     build:
       context: .
       dockerfile: Dockerfile_Flask
     container_name: lexivault-backend
     environment:
-      # Database Configuration (from core-casmarts)
-      - POSTGRES_HOST=${POSTGRES_HOST:-casmarts-core-db-primary}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_USER=${POSTGRES_USER:-admin}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-casmarts_secure_pwd}
-      - POSTGRES_DB=${POSTGRES_DB:-lexivault}
-      
-      # Celery Configuration (uses core-casmarts Redis)
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://casmarts-core-cache:6379/4}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://casmarts-core-cache:6379/4}
-      
-      # Storage Configuration (MinIO / Ceph)
-      - CEPH_ENDPOINT_URL=${CEPH_ENDPOINT_URL:-http://casmarts-core-storage:8333}
-      - CEPH_ACCESS_KEY=${CEPH_ACCESS_KEY:-admin}
-      - CEPH_SECRET_KEY=${CEPH_SECRET_KEY:-casmarts_secure_pwd}
-      - CEPH_BUCKET_NAME=${CEPH_BUCKET_NAME:-lexivault}
-      
-      # Kafka Configuration (from core-casmarts)
-      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-casmarts-core-redpanda:29092}
-      - ENABLE_KAFKA=${ENABLE_KAFKA:-false}
-      
-      # LLM & Vault Configuration
-      - NVIDIA_NIM_API_KEY=${NVIDIA_NIM_API_KEY:-}
-      - SYSTEM_MASTER_KEY=${SYSTEM_MASTER_KEY:-}
-      - VAULT_ADDR=${VAULT_ADDR:-}
-      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID:-}
-      
-      # Ollama Configuration (for embeddings)
-      - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL:-http://ollama:11434}
-      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
-      - OLLAMA_GENERATION_MODEL=${OLLAMA_GENERATION_MODEL:-mistral}
-      
-      # Vertex AI Configuration
-      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-project-9a4f42ad-5486-49f3-83b}
-      - GCP_LOCATION=${GCP_LOCATION:-us-central1}
-      - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON:-/app/google-v-credentials.json}
-      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/google-v-credentials.json}
-      - VERTEX_MODEL=${VERTEX_MODEL:-gemini-1.5-pro}
-      - LLM_PROVIDER=${LLM_PROVIDER:-vertex}
-      - DOCLING_PROVIDER=${DOCLING_PROVIDER:-vertex}
-      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-vertex}
-      
-      # Application Configuration
-      - FLASK_DEBUG=${FLASK_DEBUG:-0}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - TZ=America/Mexico_City
+    - POSTGRES_HOST=${POSTGRES_HOST:-casmarts-core-db-primary}
+    - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+    - POSTGRES_USER=${POSTGRES_USER:-admin}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-casmarts_secure_pwd}
+    - POSTGRES_DB=${POSTGRES_DB:-lexivault}
+    - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://casmarts-core-cache:6379/4}
+    - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://casmarts-core-cache:6379/4}
+    - CEPH_ENDPOINT_URL=${CEPH_ENDPOINT_URL:-http://casmarts-core-storage:8333}
+    - CEPH_ACCESS_KEY=${CEPH_ACCESS_KEY:-admin}
+    - CEPH_SECRET_KEY=${CEPH_SECRET_KEY:-casmarts_secure_pwd}
+    - CEPH_BUCKET_NAME=${CEPH_BUCKET_NAME:-lexivault}
+    - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-casmarts-core-redpanda:29092}
+    - ENABLE_KAFKA=${ENABLE_KAFKA:-false}
+    - NVIDIA_NIM_API_KEY=${NVIDIA_NIM_API_KEY:-}
+    - SYSTEM_MASTER_KEY=${SYSTEM_MASTER_KEY:-}
+    - DOCUMENT_ENCRYPTION_KEY=${DOCUMENT_ENCRYPTION_KEY:-}
+    - VAULT_ADDR=${VAULT_ADDR:-}
+    - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID:-}
+    - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL:-http://ollama:11434}
+    - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+    - OLLAMA_GENERATION_MODEL=${OLLAMA_GENERATION_MODEL:-mistral}
+    - GCP_PROJECT_ID=${GCP_PROJECT_ID:-project-9a4f42ad-5486-49f3-83b}
+    - GCP_LOCATION=${GCP_LOCATION:-us-central1}
+    - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON:-/app/google-v-credentials.json}
+    - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/google-v-credentials.json}
+    - VERTEX_MODEL=${VERTEX_MODEL:-gemini-1.5-pro}
+    - LLM_PROVIDER=${LLM_PROVIDER:-vertex}
+    - DOCLING_PROVIDER=${DOCLING_PROVIDER:-vertex}
+    - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-vertex}
+    - FLASK_DEBUG=${FLASK_DEBUG:-0}
+    - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    - TZ=America/Mexico_City
     ports:
-      - "5000:5000"
+    - 5005:5000
     volumes:
-      - ./backend:/app
-      - ../consulta-smart/backend/app/core/credentials/google-v-credentials.json:/app/google-v-credentials.json:ro
+    - ./backend:/app
+    - ../consulta-smart/backend/app/core/credentials/google-v-credentials.json:/app/google-v-credentials.json:ro
     networks:
-      - aura-network
+    - aura-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:5000/
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     restart: unless-stopped
-
+    deploy:
+      resources:
+        limits:
+          memory: 512M
   celery_worker:
     build:
       context: .
       dockerfile: Dockerfile_celery
     container_name: lexivault-worker
     environment:
-      # Database Configuration (from core-casmarts)
-      - POSTGRES_HOST=${POSTGRES_HOST:-casmarts-core-db-primary}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_USER=${POSTGRES_USER:-admin}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-casmarts_secure_pwd}
-      - POSTGRES_DB=${POSTGRES_DB:-lexivault}
-      
-      # Celery Configuration
-      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://casmarts-core-cache:6379/4}
-      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://casmarts-core-cache:6379/4}
-      
-      # Storage Configuration
-      - CEPH_ENDPOINT_URL=${CEPH_ENDPOINT_URL:-http://casmarts-core-storage:8333}
-      - CEPH_ACCESS_KEY=${CEPH_ACCESS_KEY:-admin}
-      - CEPH_SECRET_KEY=${CEPH_SECRET_KEY:-casmarts_secure_pwd}
-      - CEPH_BUCKET_NAME=${CEPH_BUCKET_NAME:-lexivault}
-      
-      # Kafka Configuration
-      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-casmarts-core-redpanda:29092}
-      - ENABLE_KAFKA=${ENABLE_KAFKA:-false}
-      
-      # LLM & Vault Configuration
-      - NVIDIA_NIM_API_KEY=${NVIDIA_NIM_API_KEY:-}
-      - SYSTEM_MASTER_KEY=${SYSTEM_MASTER_KEY:-}
-      - VAULT_ADDR=${VAULT_ADDR:-}
-      - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID:-}
-      
-      # Ollama Configuration
-      - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL:-http://ollama:11434}
-      - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
-      - OLLAMA_GENERATION_MODEL=${OLLAMA_GENERATION_MODEL:-mistral}
-      
-      # Vertex AI Configuration
-      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-project-9a4f42ad-5486-49f3-83b}
-      - GCP_LOCATION=${GCP_LOCATION:-us-central1}
-      - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON:-/app/google-v-credentials.json}
-      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/google-v-credentials.json}
-      - VERTEX_MODEL=${VERTEX_MODEL:-gemini-1.5-pro}
-      - LLM_PROVIDER=${LLM_PROVIDER:-vertex}
-      - DOCLING_PROVIDER=${DOCLING_PROVIDER:-vertex}
-      - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-vertex}
-      
-      # Application Configuration
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - TZ=America/Mexico_City
+    - POSTGRES_HOST=${POSTGRES_HOST:-casmarts-core-db-primary}
+    - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+    - POSTGRES_USER=${POSTGRES_USER:-admin}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-casmarts_secure_pwd}
+    - POSTGRES_DB=${POSTGRES_DB:-lexivault}
+    - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://casmarts-core-cache:6379/4}
+    - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://casmarts-core-cache:6379/4}
+    - CEPH_ENDPOINT_URL=${CEPH_ENDPOINT_URL:-http://casmarts-core-storage:8333}
+    - CEPH_ACCESS_KEY=${CEPH_ACCESS_KEY:-admin}
+    - CEPH_SECRET_KEY=${CEPH_SECRET_KEY:-casmarts_secure_pwd}
+    - CEPH_BUCKET_NAME=${CEPH_BUCKET_NAME:-lexivault}
+    - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-casmarts-core-redpanda:29092}
+    - ENABLE_KAFKA=${ENABLE_KAFKA:-false}
+    - NVIDIA_NIM_API_KEY=${NVIDIA_NIM_API_KEY:-}
+    - SYSTEM_MASTER_KEY=${SYSTEM_MASTER_KEY:-}
+    - DOCUMENT_ENCRYPTION_KEY=${DOCUMENT_ENCRYPTION_KEY:-}
+    - VAULT_ADDR=${VAULT_ADDR:-}
+    - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_DEV_ROOT_TOKEN_ID:-}
+    - OLLAMA_API_BASE_URL=${OLLAMA_API_BASE_URL:-http://ollama:11434}
+    - OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+    - OLLAMA_GENERATION_MODEL=${OLLAMA_GENERATION_MODEL:-mistral}
+    - GCP_PROJECT_ID=${GCP_PROJECT_ID:-project-9a4f42ad-5486-49f3-83b}
+    - GCP_LOCATION=${GCP_LOCATION:-us-central1}
+    - GCP_CREDENTIALS_JSON=${GCP_CREDENTIALS_JSON:-/app/google-v-credentials.json}
+    - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS:-/app/google-v-credentials.json}
+    - VERTEX_MODEL=${VERTEX_MODEL:-gemini-1.5-pro}
+    - LLM_PROVIDER=${LLM_PROVIDER:-vertex}
+    - DOCLING_PROVIDER=${DOCLING_PROVIDER:-vertex}
+    - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-vertex}
+    - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    - TZ=America/Mexico_City
     volumes:
-      - ./backend:/app
-      - ../consulta-smart/backend/app/core/credentials/google-v-credentials.json:/app/google-v-credentials.json:ro
+    - ./backend:/app
+    - ../consulta-smart/backend/app/core/credentials/google-v-credentials.json:/app/google-v-credentials.json:ro
     networks:
-      - aura-network
+    - aura-network
     restart: unless-stopped
     depends_on:
-      - flask_backend
-      - clamav
-
-  # ===========================================================================
-  # SCANNING & SECURITY
-  # ===========================================================================
+    - flask_backend
+    - clamav
+    deploy:
+      resources:
+        limits:
+          memory: 1G
   clamav:
     image: clamav/clamav-debian:latest
     container_name: lexivault-clamav
     environment:
-      - CLAMAV_NO_FRESHCLAMD=true
-      - TZ=America/Mexico_City
+    - CLAMAV_NO_FRESHCLAMD=true
+    - TZ=America/Mexico_City
     networks:
-      - aura-network
+    - aura-network
     restart: unless-stopped
-
-  # ===========================================================================
-  # FRONTEND (React)
-  # ===========================================================================
+    deploy:
+      resources:
+        limits:
+          memory: 2G
   frontend:
     build:
       context: ./frontend-react
     container_name: lexivault-frontend
     ports:
-      - "8501:80"
+    - 8501:80
     networks:
-      - aura-network
+    - aura-network
     restart: unless-stopped
-
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 networks:
   aura-network:
     external: true

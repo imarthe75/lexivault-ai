@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import logo from '../assets/lexivault-logo.png';
+
 const SidebarItem = ({ to, icon: Icon, children }) => (
   <NavLink 
     to={to} 
@@ -37,9 +39,9 @@ const Layout = ({ children }) => {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <Vault size={32} className="text-white" />
+          <img src={logo} alt="LexiVault" className="w-10 h-10 object-contain" />
           <div className="flex flex-col">
-            <span className="leading-tight">LexiVault</span>
+            <span className="leading-tight font-bold text-lg">LexiVault</span>
             <span className="text-[10px] uppercase tracking-widest opacity-60">Digital Assets</span>
           </div>
         </div>

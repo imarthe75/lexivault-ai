@@ -14,7 +14,7 @@ COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download spaCy model
-RUN python -m spacy download es_core_news_lg
+RUN pip install https://github.com/explosion/spacy-models/releases/download/es_core_news_lg-3.7.0/es_core_news_lg-3.7.0.tar.gz
 
 # Install Tesseract OCR
 RUN apt-get update && \
