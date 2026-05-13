@@ -31,4 +31,4 @@ COPY backend/ .
 EXPOSE 5000
 
 # Now 'app:app' will work because it's in /app
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "5000"]

@@ -10,6 +10,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
+from flasgger import Swagger
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, scoped_session
@@ -36,6 +37,15 @@ app.config["JWT_ACCESS_TOKEN_EXPIRES"] = int(settings.JWT_EXPIRATION_HOURS * 360
 jwt = JWTManager(app)
 CORS(app, origins="*", allow_headers=["Content-Type", "Authorization"])
 
+# Swagger Configuration
+app.config['SWAGGER'] = {
+    'title': 'LexiVault AI API',
+    'uiversion': 3,
+    'openapi': '3.0.2',
+    'specs_route': '/api/docs/'
+}
+swagger = Swagger(app)
+
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
@@ -58,6 +68,13 @@ def teardown_db_session(exception=None):
 
 @app.route("/", methods=["GET"])
 def home():
+    """
+    Home endpoint
+    ---
+    responses:
+      200:
+        description: API Status
+    """
     return jsonify({
         "status": "ok",
         "message": "LexiVault AI Backend API is running",
@@ -90,6 +107,33 @@ def test_db():
 
 @app.route("/auth/register", methods=["POST"])
 def register():
+    """
+    User Registration
+    ---
+    parameters:
+      - name: body
+        in: body
+        required: true
+        schema:
+          id: UserRegistration
+          required:
+            - username
+            - password
+          properties:
+            username:
+              type: string
+            password:
+              type: string
+            email:
+              type: string
+    responses:
+      201:
+        description: User registered successfully
+      400:
+        description: Missing credentials
+      409:
+        description: Username already exists
+    """
     try:
         data = request.get_json(silent=True) or {}
         username = data.get("username")
