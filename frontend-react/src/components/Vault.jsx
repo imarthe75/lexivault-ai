@@ -76,7 +76,8 @@ const Vault = () => {
     try {
       setLoading(true);
       const response = await axios.get('/documents/');
-      setDocuments(response.data);
+      const docs = Array.isArray(response.data) ? response.data : (response.data.documents || []);
+      setDocuments(docs);
     } catch (error) {
       console.error("Error fetching documents", error);
     } finally {

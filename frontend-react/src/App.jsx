@@ -9,11 +9,14 @@ import Extract from './components/Extract';
 import Toasts from './components/Toast';
 import { Loader2 } from 'lucide-react';
 
+const isSubdomain = window.location.hostname === 'lexivault.casmart.internal';
+const basePath = isSubdomain ? '/' : '/lexivault/';
+
 const oidcConfig = {
-  authority: "https://arquitectura.casmart.internal/application/o/lexivault-ai/",
+  authority: "https://auth.casmart.internal/application/o/lexivault-ai/",
   client_id: "lexivault-ai",
-  redirect_uri: window.location.origin + "/lexivault/",
-  post_logout_redirect_uri: window.location.origin + "/lexivault/",
+  redirect_uri: window.location.origin + basePath,
+  post_logout_redirect_uri: window.location.origin + basePath,
   response_type: "code",
   scope: "openid profile email",
 };
@@ -23,10 +26,15 @@ const ProtectedRoute = ({ children }) => {
 
   if (auth.isLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-primary">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="text-white animate-spin" size={48} />
-          <p className="text-white font-medium animate-pulse">Sincronizando Identidad CASMARTS...</p>
+      <div className="flex h-screen w-screen items-center justify-center bg-[#0f172a] relative overflow-hidden">
+        {/* Background Blobs for Premium Feel */}
+        <div className="fixed top-0 left-0 w-full h-full pointer-events-none z-0">
+          <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[120px]"></div>
+          <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[100px]"></div>
+        </div>
+        <div className="flex flex-col items-center gap-4 text-white relative z-10">
+          <Loader2 className="animate-spin text-blue-400" size={48} />
+          <p className="font-semibold animate-pulse text-blue-400 tracking-wider">Sincronizando Identidad CASMARTS...</p>
         </div>
       </div>
     );
@@ -44,7 +52,7 @@ const App = () => {
   return (
     <AuthProvider {...oidcConfig}>
       <Toasts />
-      <BrowserRouter basename="/lexivault">
+      <BrowserRouter basename={isSubdomain ? '/' : '/lexivault'}>
         <Routes>
           <Route path="/" element={
             <ProtectedRoute>

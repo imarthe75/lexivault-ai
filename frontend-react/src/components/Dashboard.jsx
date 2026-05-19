@@ -66,12 +66,13 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       try {
         const response = await axios.get('/documents/');
-        setRecentDocs(response.data.slice(0, 5));
+        const docs = Array.isArray(response.data) ? response.data : (response.data.documents || []);
+        setRecentDocs(docs.slice(0, 5));
         setStats(prev => ({
           ...prev,
-          totalDocs: response.data.length,
-          indexedDocs: response.data.filter(d => d.processed_status === 'indexed').length,
-          storageUsed: `${(response.data.reduce((acc, d) => acc + (d.size_bytes || 0), 0) / (1024 * 1024)).toFixed(2)} MB`
+          totalDocs: docs.length,
+          indexedDocs: docs.filter(d => d.processed_status === 'indexed').length,
+          storageUsed: `${(docs.reduce((acc, d) => acc + (d.size_bytes || 0), 0) / (1024 * 1024)).toFixed(2)} MB`
         }));
       } catch (error) {
         console.error("Error fetching dashboard data", error);

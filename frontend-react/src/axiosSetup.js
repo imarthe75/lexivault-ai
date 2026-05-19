@@ -1,8 +1,11 @@
 import axios from 'axios';
 
+const isSubdomain = window.location.hostname === 'lexivault.casmart.internal';
+const apiBase = isSubdomain ? '/api' : '/lexivault/api';
+
 // Base configuration for LexiVault API
 const instance = axios.create({
-  baseURL: '/lexivault/api',
+  baseURL: apiBase,
 });
 
 // Attach OIDC token from session storage to every request

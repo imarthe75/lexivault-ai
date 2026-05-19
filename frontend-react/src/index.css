@@ -1,3 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --color-lexivault-blue: #2c5282;
+  --color-lexivault-accent: #4299e1;
+}
+
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
