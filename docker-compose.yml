@@ -34,6 +34,9 @@ services:
     - LLM_PROVIDER=${LLM_PROVIDER:-vertex}
     - DOCLING_PROVIDER=${DOCLING_PROVIDER:-vertex}
     - EMBEDDING_PROVIDER=${EMBEDDING_PROVIDER:-vertex}
+    - AUTHENTIK_URL=https://auth.casmart.internal
+    - AUTHENTIK_INTERNAL_URL=http://casmarts-core-authentik-server:9000
+    - AUTHENTIK_CLIENT_ID=lexivault
     - FLASK_DEBUG=${FLASK_DEBUG:-0}
     - LOG_LEVEL=${LOG_LEVEL:-INFO}
     - TZ=America/Mexico_City

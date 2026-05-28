@@ -1,32 +1,80 @@
 @import "tailwindcss";
 
 @theme {
-  --color-lexivault-blue: #2c5282;
-  --color-lexivault-accent: #4299e1;
+  --color-lexivault-blue: #1a3a5c;
+  --color-lexivault-accent: #142e4a;
 }
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
 
 :root {
-  /* CASMARTS 2026 Core Palette */
-  --primary:    #002A4C; /* Deep Corporate Blue */
-  --primary-h:  #003a66;
-  --accent:     #BDC3C7; /* Silver */
-  --bg:         #F1F5F9; /* Light Gray/Blue background */
-  --surface:    #FFFFFF;
-  --border:     rgba(0, 42, 76, 0.08);
+  /* --- CÍVIKA DESIGN SYSTEM TOKENS --- */
+  /* Primitivos */
+  --primitive-gray-50:  #f8fafc;
+  --primitive-gray-100: #f1f5f9;
+  --primitive-gray-200: #e2e8f0;
+  --primitive-gray-300: #cbd5e1;
+  --primitive-gray-400: #94a3b8;
+  --primitive-gray-500: #64748b;
+  --primitive-gray-600: #475569;
+  --primitive-gray-700: #334155;
+  --primitive-gray-800: #1e293b;
+  --primitive-gray-900: #0f172a;
+
+  --primitive-font-sans: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --primitive-font-mono: 'DM Mono', 'Cascadia Code', 'Consolas', monospace;
+
+  /* Radios de borde */
+  --primitive-radius-none: 0px;
+  --primitive-radius-sm:   4px;
+  --primitive-radius-md:   8px;   /* Átomos */
+  --primitive-radius-lg:   14px;  /* Organismos */
+  --primitive-radius-xl:   20px;
+  --primitive-radius-full: 9999px;
+
+  /* Semánticos */
+  --bg-page:           var(--primitive-gray-50);
+  --bg-surface:        #ffffff;
+  --bg-input:          #ffffff;
+  --bg-input-disabled: var(--primitive-gray-100);
+
+  --text-primary:   var(--primitive-gray-800);
+  --text-secondary: var(--primitive-gray-600);
+  --text-tertiary:  var(--primitive-gray-500);
+  --text-inverse:   #ffffff;
+
+  --border-subtle:  var(--primitive-gray-100);
+  --border-default: var(--primitive-gray-300);
+
+  --radius-atom:      var(--primitive-radius-md);
+  --radius-organism:  var(--primitive-radius-lg);
+  --radius-container: var(--primitive-radius-xl);
+
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+
+  /* Marca CÍVIKA */
+  --brand:       #1a3a5c;
+  --brand-hover: #142e4a;
+  --brand-light: rgba(26, 58, 92, 0.08);
+
+  /* Mapeos semánticos de compatibilidad para LexiVault */
+  --primary:    var(--brand);
+  --primary-h:  var(--brand-hover);
+  --accent:     var(--primitive-gray-400);
+  --bg:         var(--bg-page);
+  --surface:    var(--bg-surface);
+  --border:     var(--border-subtle);
   --success:    #10B981;
   --error:      #EF4444;
   --warn:       #F59E0B;
-  --text:       #002A4C;
-  --text-muted: #64748B;
+  --text:       var(--text-primary);
+  --text-muted: var(--text-secondary);
   
-  /* Flat Design Tokens */
-  --radius-lg:  40px; /* Card radius as requested */
-  --radius-md:  16px;
-  --radius-sm:  8px;
-  --shadow:     none; /* Explicitly no shadows for Flat design */
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --radius-lg:  var(--radius-container); /* 20px en lugar de 40px! */
+  --radius-md:  var(--radius-organism);  /* 14px en lugar de 16px! */
+  --radius-sm:  var(--radius-atom);      /* 8px */
+  --shadow:     var(--shadow-card);
+  --transition: all 0.2s ease;
 }
 
 * { 
@@ -36,7 +84,7 @@
 }
 
 body {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--primitive-font-sans), sans-serif;
   background-color: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;

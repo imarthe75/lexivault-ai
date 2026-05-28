@@ -103,14 +103,54 @@ def login(user_data: UserAuth):
         logger.error(f"Login error: {e}")
         raise HTTPException(status_code=500, detail="Login failed")
 
-# Note: In a real production app, we would use a proper JWT bearer dependency.
-# For now, I'm mimicking the original structure which used flask-jwt-extended.
-# I'll add a placeholder for JWT validation if needed or rely on the services.
+from fastapi.security import OAuth2PasswordBearer
+from jwt import PyJWKClient
+import jwt
+import uuid
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.AUTHENTIK_URL}/application/o/token/",
+    auto_error=False,
+)
+
+_jwks_client = PyJWKClient(
+    f"{settings.AUTHENTIK_INTERNAL_URL}/application/o/{settings.AUTHENTIK_CLIENT_ID}/jwks/"
+)
+
+def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+    try:
+        signing_key = _jwks_client.get_signing_key_from_jwt(token)
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=settings.AUTHENTIK_CLIENT_ID,
+            options={"verify_exp": True},
+        )
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
+    except Exception as e:
+        logger.warning(f"[lexivault] JWT validation failed: {e}")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+def get_user_uuid(user_data: dict) -> uuid.UUID:
+    sub = user_data.get("sub")
+    if not sub:
+        sub = user_data.get("preferred_username") or "default_user"
+    try:
+        return uuid.UUID(sub)
+    except ValueError:
+        # Generar un UUID v5 estable y determinista si no es un UUID nativo
+        return uuid.uuid5(uuid.NAMESPACE_DNS, sub)
 
 @app.get("/documents", tags=["Documents"])
-def list_documents(user_id: str):
+def list_documents(current_user: dict = Depends(get_current_user)):
     try:
-        documents = document_service.list_documents(UUID(user_id))
+        user_uuid = get_user_uuid(current_user)
+        documents = document_service.list_documents(user_uuid)
         return {
             "documents": [
                 {
@@ -130,18 +170,19 @@ def list_documents(user_id: str):
 
 @app.post("/documents", status_code=status.HTTP_201_CREATED, tags=["Documents"])
 async def upload_document(
-    user_id: str = Form(...),
     file: UploadFile = File(...),
     title: Optional[str] = Form(None),
     category: Optional[str] = Form(None),
-    tags: Optional[str] = Form("")
+    tags: Optional[str] = Form(""),
+    current_user: dict = Depends(get_current_user)
 ):
     try:
+        user_uuid = get_user_uuid(current_user)
         file_content = await file.read()
         tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
         
         document = document_service.upload_document(
-            user_id=UUID(user_id),
+            user_id=user_uuid,
             filename=file.filename,
             file_content=file_content,
             mime_type=file.content_type,
@@ -162,12 +203,17 @@ async def upload_document(
         raise HTTPException(status_code=500, detail="Failed to upload document")
 
 @app.post("/chat", tags=["AI"])
-def chat(query: str = Form(...), user_id: str = Form(...), document_id: Optional[str] = Form(None)):
+def chat(
+    query: str = Form(...), 
+    document_id: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user)
+):
     try:
+        user_uuid = get_user_uuid(current_user)
         context_text = None
         if document_id:
             try:
-                document = document_service.get_document(UUID(user_id), UUID(document_id))
+                document = document_service.get_document(user_uuid, uuid.UUID(document_id))
                 if document:
                     context_text = (
                         f"Document title: {document.title}\n"

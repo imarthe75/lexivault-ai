@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_HOURS: int = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 
     # ========================================================================
+    # AUTHENTIK OIDC
+    # ========================================================================
+    AUTHENTIK_URL: str = os.getenv("AUTHENTIK_URL", "https://auth.casmart.internal")
+    AUTHENTIK_INTERNAL_URL: str = os.getenv("AUTHENTIK_INTERNAL_URL", "http://casmarts-core-authentik-server:9000")
+    AUTHENTIK_CLIENT_ID: str = os.getenv("AUTHENTIK_CLIENT_ID", "lexivault")
+
+    # ========================================================================
     # SECURITY & ENCRYPTION
     # ========================================================================
     SYSTEM_MASTER_KEY: Optional[str] = os.getenv("SYSTEM_MASTER_KEY")
